@@ -1,7 +1,7 @@
 /**
  * @fileOverview 演示会话服务和 WebSocket 信道服务的使用方式
  */
-
+var app = getApp();
 // 引入 QCloud 小程序增强 SDK
 var qcloud = require('../../vendor/qcloud-weapp-client-sdk/index');
 
@@ -63,8 +63,10 @@ Page({
             success(result) {
                 showSuccess('登录成功');
                 console.log('登录成功', result);
-                this.closeTunnel();
+                app.globalData.userInfo=result;
+                // this.closeTunnel();
                 wx.navigateTo({ url: '../home/home' });
+
             },
 
             fail(error) {

@@ -32,8 +32,19 @@ App({
   /**
    * 小程序初始化时执行，我们初始化客户端的登录地址，以支持所有的会话操作
    */
+  globalData: {
+    userInfo: null,
+    clientModel: '',
+    clientUserid: '',
+    clientVersion: '',
+    clientSystem: '',
+    clientPlatform: '',
+    clientSDKVersion: '',
+    welcome: '进入巧遇游'
+  },
   onLaunch() {
     qcloud.setLoginUrl(config.service.loginUrl);
+
   },
 
   getUserInfo: function (cb) {
@@ -58,19 +69,9 @@ App({
           console.log('登录失败', error);
         }
       });
-      // wx.login({
-      //   success: function () {
-      //     wx.getUserInfo({
-      //       success: function (res) {
-      //         that.globalData.userInfo = res.userInfo
-      //         typeof cb == "function" && cb(that.globalData.userInfo)
-      //       }
-      //     })
-      //   }
-      // })
+     
     }
   },
-  globalData: {
-    userInfo: null
-  }
+  
+ 
 });

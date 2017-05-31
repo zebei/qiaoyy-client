@@ -177,6 +177,7 @@ Page({
     sendMessage() {
         // 使用 tunnel.isActive() 来检测当前信道是否处于可用状态
         if (this.tunnel && this.tunnel.isActive()) {
+            console.log('speak');
             // 使用信道给服务器推送「speak」消息
             this.tunnel.emit('speak', {
                 'word': 'I say something at ' + new Date(),

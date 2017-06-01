@@ -84,7 +84,6 @@ var login = function login(options) {
         }
         
         var userInfo = wxLoginResult.userInfo;
-
         // 构造请求头，包含 code、encryptedData 和 iv
         var code = wxLoginResult.code;
         var encryptedData = wxLoginResult.encryptedData;
@@ -104,11 +103,11 @@ var login = function login(options) {
 
             success: function (result) {
                 var data = result.data;
-
                 // 成功地响应会话信息
                 if (data && data[constants.WX_SESSION_MAGIC_ID]) {
                     if (data.session) {
                         data.session.userInfo = userInfo;
+                        data.session.userInfo.userId=data.session.userId;
                         Session.set(data.session);
                         options.success(userInfo);
                     } else {

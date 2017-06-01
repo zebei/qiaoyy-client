@@ -1,13 +1,14 @@
 {
-    "pages": [
-        "pages/index/index",
-        "pages/chat/chat",
-        "pages/home/home"
-    ],
-    "window": {
-        "backgroundTextStyle": "light",
-        "navigationBarBackgroundColor": "#333",
-        "navigationBarTitleText": "腾讯云小程序解决方案",
-        "navigationBarTextStyle": "white"
-    }
+  "pages": [
+    "pages/home/home",
+    "pages/index/index",
+    "pages/chat/chat",
+    "pages/game/game"
+  ],
+  "window": {
+    "backgroundTextStyle": "light",
+    "navigationBarBackgroundColor": "#333",
+    "navigationBarTitleText": "腾讯云小程序解决方案",
+    "navigationBarTextStyle": "white"
+  }
 }

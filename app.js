@@ -55,23 +55,44 @@ App({
       //调用登录接口
       qcloud.login({
         success(result) {
-          showSuccess('登录成功');
+          //showSuccess('登录成功');
           console.log('登录成功', result);
           that.globalData.userInfo = result;
           typeof cb == "function" && cb(that.globalData.userInfo);
-          //this.closeTunnel();
-          //wx.navigateTo({ url: '../home/home' });
 
         },
-
         fail(error) {
           showModel('登录失败', error);
           console.log('登录失败', error);
         }
       });
-     
+
     }
+  }, 
+  addGlobalData:function(){
+    // wx.request({
+    //   url: config.service.testUrl,
+    //   data: {
+    //     userid: 10000018
+    //   },
+    //   header: {
+    //     'userid': app.globalData.userInfo.userid,
+    //     'model': app.globalData.clientModel,
+    //     'version': app.globalData.clientVersion,
+    //     'system': app.globalData.clientSystem,
+    //     'platform': app.globalData.clientPlatform,
+    //     'SDKVersion': app.globalData.clientSDKVersion
+    //   },
+    //   success: function (res) {
+    //     console.log(res.data)
+    //   }
+    // })
   },
-  
- 
+  clearSession:function() {
+    // 清除保存在 storage 的会话信息
+    qcloud.clearSession();
+    showSuccess('会话已清除');
+  }
+
+
 });

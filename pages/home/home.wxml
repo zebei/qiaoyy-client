@@ -7,4 +7,11 @@
   <view class="usermotto" bindtap="doTest">
     <text class="user-motto">{{motto}}</text>
   </view>
+   <view class="usermotto" style="margin-top:15px" bindtap="clearLogin">
+    <text class="user-motto">注销</text>
+  </view>
+   <view class="usermotto" style="margin-top:15px" bindtap="gotogame">
+    <text class="user-motto">gotogame</text>
+  </view>
+  
 </view>

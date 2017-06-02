@@ -108,6 +108,7 @@ var login = function login(options) {
                     if (data.session) {
                         data.session.userInfo = userInfo;
                         data.session.userInfo.userId=data.session.userId;
+                        data.session.userInfo.score=data.session.score;
                         Session.set(data.session);
                         options.success(userInfo);
                     } else {

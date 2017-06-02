@@ -27,6 +27,12 @@ var showModel = (title, content) => {
     showCancel: false
   });
 };
+var sysCode={
+  SUCCESS:"0",
+  ERROR:"1",
+  STONE_START: "10001",
+  STONE_END:"10002"
+}
 
 App({
   /**
@@ -40,6 +46,7 @@ App({
     clientSystem: '',
     clientPlatform: '',
     clientSDKVersion: '',
+    sysCode:sysCode,
     welcome: '进入巧遇游'
   },
   onLaunch() {

@@ -67,8 +67,10 @@ Page({
     } catch (error) {
       console.error('error on login or connect: ', error);
     }
-
-   // this.serve();
+    this.setData({
+      myScore: app.globalData.userInfo.score
+    });
+    this.serve();
   }),
 
   // 微信登录后获得用户信息
@@ -80,18 +82,21 @@ Page({
     this.setData({ myName: nickName, myAvatar: avatarUrl })
   }),
   connect: co.wrap(function* () {
-    var that=this;
+    var that = this;
     wx.connectSocket({
       url: 'ws://localhost:12306/websocket'
     })
     wx.onSocketOpen(function (res) {
       console.log('WebSocket连接已打开！');
+      // wx.sendSocketMessage({
+      //   data: "1113333"
+      // });
       that.setData({ gameInfo: "准备", connected: true });
     })
     wx.onSocketError(function (res) {
       console.log('WebSocket连接打开失败，请检查！')
     })
-  })
+  }),
   // 链接到服务器后进行 hi-hello 握手
   // connect: co.wrap(function* () {
   //   this.setData({ gameInfo: "正在连接" });
@@ -125,113 +130,215 @@ Page({
   // }),
 
   // 开始进行游戏服务
-  // serve: co.wrap(function* () {
-  //   const socket = this.socket;
+  serve: co.wrap(function* () {
+    const socket = this.socket;
+    wx.onSocketMessage(function (res) {
+      console.log('收到服务器内容：' + res.data)
+      if (res.data.code == app.globalData.sysCode.STONE_START) {
+        //start开始游戏逻辑
+        const you = res.data.data.roomUsers.find(user => user.Id !== app.globalData.userInfo.userId);
+        this.setData({
+          youHere: true,
+          yourName: you.nickName,
+          yourAvatar: you.avatarUrl,
+          yourScore: you.score,
+          playing: true,
+          gameInfo: "准备"
+        });
 
-  //   // 游戏开始，初始化对方信息，启动计时器
-  //   socket.on('start', packet => {
-  //     const you = packet.roomUsers.find(user => user.uid !== this.uid);
+        let gameTime = res.data.data.gameTime;
+        clearInterval(this.countdownId);
+        this.countdownId = setInterval(() => {
+          if (gameTime > 0) {
+            this.setData({ gameInfo: --gameTime });
+          } else {
+            clearInterval(this.countdownId);
+          }
+        }, 1000);
+        //发送用户选择
+        var tempData = {
+          operation: "changeChoice",
+          choice: myChoice,
+          userId: app.globalData.userInfo.userId,
+        }
+        var sendData = {
+          game: "stone",
+          data: tempData
+        };
+        wx.sendSocketMessage({
+          data: JSON.stringify(sendData)
+        });
+      } else if (res.data.code == app.globalData.sysCode.STONE_END) {
+        //end游戏结算逻辑
+        // 清除计时器
+        clearInterval(this.countdownId);
 
-  //     this.setData({
-  //       youHere: true,
-  //       yourName: you.uname,
-  //       yourAvatar: you.uavatar,
-  //       playing: true,
-  //       gameInfo: "准备"
-  //     });
+        //   // 双方结果
+        //   const myResult = packet.result.find(x => x.uid == this.uid);
+        //   const yourResult = packet.result.find(x => x.uid != this.uid);
 
-  //     let gameTime = packet.gameTime;
-  //     clearInterval(this.countdownId);
-  //     this.countdownId = setInterval(() => {
-  //       if (gameTime > 0) {
-  //         this.setData({ gameInfo: --gameTime });
-  //       } else {
-  //         clearInterval(this.countdownId);
-  //       }
-  //     }, 1000);
+        //   // 本局结果
+        //   let gameInfo, win = 'nobody';
+        //   if (myResult.roundScore == 0 && yourResult.roundScore == 0) {
+        //     gameInfo = '平局';
+        //   }
+        //   else if (myResult.roundScore > 0) {
+        //     gameInfo = '胜利';
+        //     win = 'me';
+        //   }
+        //   else {
+        //     gameInfo = '失误';
+        //     lose = true;
+        //     win = 'you'
+        //   }
 
-  //     this.socket.emit('choice', { choice: this.data.myChoice });
-  //   });
+        //   // 更新到视图
+        //   this.setData({
+        //     gameInfo,
+        //     myScore: myResult.totalScore,
+        //     myStreak: myResult.winStreak,
+        //     yourChoice: yourResult.choice,
+        //     yourScore: yourResult.totalScore,
+        //     yourStreak: yourResult.winStreak,
+        //     gameState: 'finish',
+        //     win,
+        //     startButtonText: win == 'you' ? "不服" : "再来",
+        //     done: true
+        //   });
 
-  //   // 对方有动静的时候，触发提醒
-  //   let movementTimer = 0;
-  //   const movementTimeout = 300;
-  //   socket.on('movement', packet => {
-  //     const lastMove = this.lastMove;
+        //   setTimeout(() => this.setData({ playing: false }), 1000);
+      }
+    });
+    // 游戏开始，初始化对方信息，启动计时器
+    // socket.on('start', packet => {
+    //   const you = packet.roomUsers.find(user => user.uid !== this.uid);
 
-  //     this.setData({ yourMove: lastMove == 1 ? 2 : 1 });
+    //   this.setData({
+    //     youHere: true,
+    //     yourName: you.uname,
+    //     yourAvatar: you.uavatar,
+    //     playing: true,
+    //     gameInfo: "准备"
+    //   });
 
-  //     clearTimeout(movementTimer);
-  //     movementTimer = setTimeout(() => {
-  //       this.lastMove = this.data.yourMove;
-  //       this.setData({ yourMove: 0 });
-  //     }, 300);
-  //   });
+    //   let gameTime = packet.gameTime;
+    //   clearInterval(this.countdownId);
+    //   this.countdownId = setInterval(() => {
+    //     if (gameTime > 0) {
+    //       this.setData({ gameInfo: --gameTime });
+    //     } else {
+    //       clearInterval(this.countdownId);
+    //     }
+    //   }, 1000);
 
-  //   // 服务器通知结果
-  //   socket.on('result', packet => {
+    //   this.socket.emit('choice', { choice: this.data.myChoice });
+    // });
 
-  //     // 清除计时器
-  //     clearInterval(this.countdownId);
+    // 对方有动静的时候，触发提醒
+    // let movementTimer = 0;
+    // const movementTimeout = 300;
+    // socket.on('movement', packet => {
+    //   const lastMove = this.lastMove;
 
-  //     // 双方结果
-  //     const myResult = packet.result.find(x => x.uid == this.uid);
-  //     const yourResult = packet.result.find(x => x.uid != this.uid);
+    //   this.setData({ yourMove: lastMove == 1 ? 2 : 1 });
 
-  //     // 本局结果
-  //     let gameInfo, win = 'nobody';
-  //     if (myResult.roundScore == 0 && yourResult.roundScore == 0) {
-  //       gameInfo = '平局';
-  //     }
-  //     else if (myResult.roundScore > 0) {
-  //       gameInfo = '胜利';
-  //       win = 'me';
-  //     }
-  //     else {
-  //       gameInfo = '失误';
-  //       lose = true;
-  //       win = 'you'
-  //     }
+    //   clearTimeout(movementTimer);
+    //   movementTimer = setTimeout(() => {
+    //     this.lastMove = this.data.yourMove;
+    //     this.setData({ yourMove: 0 });
+    //   }, 300);
+    // });
 
-  //     // 更新到视图
-  //     this.setData({
-  //       gameInfo,
-  //       myScore: myResult.totalScore,
-  //       myStreak: myResult.winStreak,
-  //       yourChoice: yourResult.choice,
-  //       yourScore: yourResult.totalScore,
-  //       yourStreak: yourResult.winStreak,
-  //       gameState: 'finish',
-  //       win,
-  //       startButtonText: win == 'you' ? "不服" : "再来",
-  //       done: true
-  //     });
+    // 服务器通知结果
+    // socket.on('result', packet => {
 
-  //     setTimeout(() => this.setData({ playing: false }), 1000);
-  //   });
-  // })
+    //   // 清除计时器
+    //   clearInterval(this.countdownId);
+
+    //   // 双方结果
+    //   const myResult = packet.result.find(x => x.uid == this.uid);
+    //   const yourResult = packet.result.find(x => x.uid != this.uid);
+
+    //   // 本局结果
+    //   let gameInfo, win = 'nobody';
+    //   if (myResult.roundScore == 0 && yourResult.roundScore == 0) {
+    //     gameInfo = '平局';
+    //   }
+    //   else if (myResult.roundScore > 0) {
+    //     gameInfo = '胜利';
+    //     win = 'me';
+    //   }
+    //   else {
+    //     gameInfo = '失误';
+    //     lose = true;
+    //     win = 'you'
+    //   }
+
+    //   // 更新到视图
+    //   this.setData({
+    //     gameInfo,
+    //     myScore: myResult.totalScore,
+    //     myStreak: myResult.winStreak,
+    //     yourChoice: yourResult.choice,
+    //     yourScore: yourResult.totalScore,
+    //     yourStreak: yourResult.winStreak,
+    //     gameState: 'finish',
+    //     win,
+    //     startButtonText: win == 'you' ? "不服" : "再来",
+    //     done: true
+    //   });
+
+    //   setTimeout(() => this.setData({ playing: false }), 1000);
+    // });
+  }),
 
   // 点击开始游戏按钮，发送加入游戏请求
-  // startGame: co.wrap(function* () {
-  //   if (this.data.playing) return;
-  //   const socket = this.socket;
-  //   this.setData({
-  //     playing: false,
-  //     done: false,
-  //     gameInfo: '正在寻找玩伴...'
-  //   });
-  //   socket.emit('join');
-  // }),
+  startGame: co.wrap(function* () {
+    if (this.data.playing) return;
+    const socket = this.socket;
+    let myChoice = this.data.myChoice
+    console.log(app.globalData.userInfo.userId);
+    var tempData = {
+      operation: "join",
+      choice: myChoice,
+      userId: app.globalData.userInfo.userId,
+    }
+    var sendData = {
+      game: "stone",
+      data: tempData
+    };
+    wx.sendSocketMessage({
+      data: JSON.stringify(sendData)
+    });
+    this.setData({
+      playing: false,
+      done: false,
+      gameInfo: '正在寻找玩伴...'
+    });
+
+  }),
 
   // 点击手势，更新选择是石头、剪刀还是布
-  ,switchChoice(e) {
+  switchChoice(e) {
     console.log("1111");
-    if (!this.data.playing) return;
+    if (this.data.playing) return;
     let myChoice = this.data.myChoice + 1;
     if (myChoice == 4) {
       myChoice = 1;
     }
     this.setData({ myChoice });
-    this.socket.emit('choice', { choice: myChoice });
+    //发送用户改变选项消息
+    var tempData = {
+      operation: "changeChoice",
+      choice: myChoice,
+      userId: app.globalData.userInfo.userId,
+    }
+    var sendData = {
+      game: "stone",
+      data: tempData
+    };
+    wx.sendSocketMessage({
+      data: JSON.stringify(sendData)
+    });
   }
 });

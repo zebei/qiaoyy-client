@@ -33,6 +33,10 @@ var sysCode={
   STONE_START: "10001",
   STONE_END:"10002"
 }
+var apiCode={
+  test:10000,
+  stone:10001
+}
 
 App({
   /**
@@ -47,6 +51,7 @@ App({
     clientPlatform: '',
     clientSDKVersion: '',
     sysCode:sysCode,
+    apiCode:apiCode,
     welcome: '进入巧遇游'
   },
   onLaunch() {

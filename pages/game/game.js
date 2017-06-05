@@ -84,7 +84,8 @@ Page({
   connect: co.wrap(function* () {
     var that = this;
     wx.connectSocket({
-      url: 'ws://localhost:12306/websocket'
+      url: 'ws://localhost:12306/websocket?userid=' + app.globalData.userInfo.userId,
+     
     })
     wx.onSocketOpen(function (res) {
       console.log('WebSocket连接已打开！');
@@ -97,47 +98,20 @@ Page({
       console.log('WebSocket连接打开失败，请检查！')
     })
   }),
-  // 链接到服务器后进行 hi-hello 握手
-  // connect: co.wrap(function* () {
-  //   this.setData({ gameInfo: "正在连接" });
-
-  //   const socket = this.socket = new WxSocketIO();
-  //   try {
-  //     yield socket.connect(`wss://localhost:12306`);
-  //   } catch (connectError) {
-  //     console.error({ connectError });
-  //     this.setData({ gameInfo: "连接错误" });
-  //     throw connectError;
-  //   }
-
-  //   return new Promise((resolve, reject) => {
-  //     const { myName, myAvatar } = this.data;
-
-  //     // when i say hello server should response hi
-  //     socket.on('hi', packet => {
-  //       console.log(packet.message);
-  //       resolve();
-  //     });
-  //     socket.emit('hello', {
-  //       user: {
-  //         uid: this.uid = uuid(),
-  //         uname: myName,
-  //         uavatar: myAvatar
-  //       }
-  //     });
-  //     this.setData({ gameInfo: "准备", connected: true });
-  //   })
-  // }),
+  
 
   // 开始进行游戏服务
   serve: co.wrap(function* () {
     const socket = this.socket;
+    var that=this;
     wx.onSocketMessage(function (res) {
       console.log('收到服务器内容：' + res.data)
-      if (res.data.code == app.globalData.sysCode.STONE_START) {
+      if (JSON.parse(res.data).code == app.globalData.sysCode.STONE_START) {
         //start开始游戏逻辑
-        const you = res.data.data.roomUsers.find(user => user.Id !== app.globalData.userInfo.userId);
-        this.setData({
+        const result = JSON.parse(res.data).data;
+        const you = result.roomUsers.find(user => user.Id !== app.globalData.userInfo.userId);
+        console.log(you);
+        that.setData({
           youHere: true,
           yourName: you.nickName,
           yourAvatar: you.avatarUrl,
@@ -146,11 +120,11 @@ Page({
           gameInfo: "准备"
         });
 
-        let gameTime = res.data.data.gameTime;
-        clearInterval(this.countdownId);
-        this.countdownId = setInterval(() => {
+        let gameTime = result.gameTime;
+        clearInterval(that.countdownId);
+        that.countdownId = setInterval(() => {
           if (gameTime > 0) {
-            this.setData({ gameInfo: --gameTime });
+            that.setData({ gameInfo: --gameTime });
           } else {
             clearInterval(this.countdownId);
           }
@@ -158,138 +132,58 @@ Page({
         //发送用户选择
         var tempData = {
           operation: "changeChoice",
-          choice: myChoice,
+          choice: that.data.myChoice,
           userId: app.globalData.userInfo.userId,
         }
         var sendData = {
-          game: "stone",
+          game: app.globalData.apiCode.stone,
           data: tempData
         };
         wx.sendSocketMessage({
           data: JSON.stringify(sendData)
         });
-      } else if (res.data.code == app.globalData.sysCode.STONE_END) {
+      } else if (JSON.parse(res.data).code == app.globalData.sysCode.STONE_END) {
         //end游戏结算逻辑
         // 清除计时器
-        clearInterval(this.countdownId);
+        clearInterval(that.countdownId);
+        var result = JSON.parse(res.data).data;
+          // 双方结果
+        const myResult = result.find(x => x.userid == app.globalData.userInfo.userId);
+        const yourResult = result.find(x => x.userid != app.globalData.userInfo.userId);
 
-        //   // 双方结果
-        //   const myResult = packet.result.find(x => x.uid == this.uid);
-        //   const yourResult = packet.result.find(x => x.uid != this.uid);
+          // 本局结果
+          let gameInfo, win = 'nobody';
+          if (myResult.roundScore == 0 && yourResult.roundScore == 0) {
+            gameInfo = '平局';
+          }
+          else if (myResult.roundScore > 0) {
+            gameInfo = '胜利';
+            win = 'me';
+          }
+          else {
+            gameInfo = '失误';
+            lose = true;
+            win = 'you'
+          }
 
-        //   // 本局结果
-        //   let gameInfo, win = 'nobody';
-        //   if (myResult.roundScore == 0 && yourResult.roundScore == 0) {
-        //     gameInfo = '平局';
-        //   }
-        //   else if (myResult.roundScore > 0) {
-        //     gameInfo = '胜利';
-        //     win = 'me';
-        //   }
-        //   else {
-        //     gameInfo = '失误';
-        //     lose = true;
-        //     win = 'you'
-        //   }
+          // 更新到视图
+          that.setData({
+            gameInfo,
+            myScore: myResult.totalScore,
+           // myStreak: myResult.winStreak,
+            yourChoice: yourResult.choice,
+            yourScore: yourResult.totalScore,
+           // yourStreak: yourResult.winStreak,
+            gameState: 'finish',
+            win,
+            startButtonText: win == 'you' ? "不服" : "再来",
+            done: true
+          });
 
-        //   // 更新到视图
-        //   this.setData({
-        //     gameInfo,
-        //     myScore: myResult.totalScore,
-        //     myStreak: myResult.winStreak,
-        //     yourChoice: yourResult.choice,
-        //     yourScore: yourResult.totalScore,
-        //     yourStreak: yourResult.winStreak,
-        //     gameState: 'finish',
-        //     win,
-        //     startButtonText: win == 'you' ? "不服" : "再来",
-        //     done: true
-        //   });
-
-        //   setTimeout(() => this.setData({ playing: false }), 1000);
+          setTimeout(() => that.setData({ playing: false }), 1000);
       }
     });
-    // 游戏开始，初始化对方信息，启动计时器
-    // socket.on('start', packet => {
-    //   const you = packet.roomUsers.find(user => user.uid !== this.uid);
-
-    //   this.setData({
-    //     youHere: true,
-    //     yourName: you.uname,
-    //     yourAvatar: you.uavatar,
-    //     playing: true,
-    //     gameInfo: "准备"
-    //   });
-
-    //   let gameTime = packet.gameTime;
-    //   clearInterval(this.countdownId);
-    //   this.countdownId = setInterval(() => {
-    //     if (gameTime > 0) {
-    //       this.setData({ gameInfo: --gameTime });
-    //     } else {
-    //       clearInterval(this.countdownId);
-    //     }
-    //   }, 1000);
-
-    //   this.socket.emit('choice', { choice: this.data.myChoice });
-    // });
-
-    // 对方有动静的时候，触发提醒
-    // let movementTimer = 0;
-    // const movementTimeout = 300;
-    // socket.on('movement', packet => {
-    //   const lastMove = this.lastMove;
-
-    //   this.setData({ yourMove: lastMove == 1 ? 2 : 1 });
-
-    //   clearTimeout(movementTimer);
-    //   movementTimer = setTimeout(() => {
-    //     this.lastMove = this.data.yourMove;
-    //     this.setData({ yourMove: 0 });
-    //   }, 300);
-    // });
-
-    // 服务器通知结果
-    // socket.on('result', packet => {
-
-    //   // 清除计时器
-    //   clearInterval(this.countdownId);
-
-    //   // 双方结果
-    //   const myResult = packet.result.find(x => x.uid == this.uid);
-    //   const yourResult = packet.result.find(x => x.uid != this.uid);
-
-    //   // 本局结果
-    //   let gameInfo, win = 'nobody';
-    //   if (myResult.roundScore == 0 && yourResult.roundScore == 0) {
-    //     gameInfo = '平局';
-    //   }
-    //   else if (myResult.roundScore > 0) {
-    //     gameInfo = '胜利';
-    //     win = 'me';
-    //   }
-    //   else {
-    //     gameInfo = '失误';
-    //     lose = true;
-    //     win = 'you'
-    //   }
-
-    //   // 更新到视图
-    //   this.setData({
-    //     gameInfo,
-    //     myScore: myResult.totalScore,
-    //     myStreak: myResult.winStreak,
-    //     yourChoice: yourResult.choice,
-    //     yourScore: yourResult.totalScore,
-    //     yourStreak: yourResult.winStreak,
-    //     gameState: 'finish',
-    //     win,
-    //     startButtonText: win == 'you' ? "不服" : "再来",
-    //     done: true
-    //   });
-
-    //   setTimeout(() => this.setData({ playing: false }), 1000);
-    // });
+   
   }),
 
   // 点击开始游戏按钮，发送加入游戏请求
@@ -304,7 +198,7 @@ Page({
       userId: app.globalData.userInfo.userId,
     }
     var sendData = {
-      game: "stone",
+      game: app.globalData.apiCode.stone,
       data: tempData
     };
     wx.sendSocketMessage({
@@ -334,7 +228,7 @@ Page({
       userId: app.globalData.userInfo.userId,
     }
     var sendData = {
-      game: "stone",
+      game: app.globalData.apiCode.stone,
       data: tempData
     };
     wx.sendSocketMessage({

@@ -30,8 +30,8 @@ var showModel = (title, content) => {
 var sysCode={
   SUCCESS:"0",
   ERROR:"1",
-  STONE_START: "10001",
-  STONE_END:"10002"
+  WEBSOCKET_STONE_START: "10001",
+  WEBSOCKET_STONE_END:"10002"
 }
 var apiCode={
   test:10000,

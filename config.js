@@ -22,8 +22,10 @@
 //     }
 // };
 
-var host = 'localhost:22306';
-
+// var host = 'localhost:22306';
+// var sockethost ='localhost:12306';
+var host = '123.206.6.223:22306';
+var sockethost ='123.206.6.223:12306';
 var config = {
 
     // 下面的地址配合云端 Demo 工作
@@ -40,6 +42,7 @@ var config = {
         tunnelUrl: `http://${host}/tunnel`,
 
         testUrl: `http://${host}/test/test`,
+        websocketUrl: `wss://${sockethost}/`,
 
         
         

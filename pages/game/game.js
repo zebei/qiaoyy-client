@@ -84,7 +84,7 @@ Page({
   connect: co.wrap(function* () {
     var that = this;
     wx.connectSocket({
-      url: 'ws://localhost:12306/websocket?userid=' + app.globalData.userInfo.userId,
+      url: appConfig.service.websocketUrl+'websocket?userid=' + app.globalData.userInfo.userId,
      
     })
     wx.onSocketOpen(function (res) {
@@ -106,10 +106,11 @@ Page({
     var that=this;
     wx.onSocketMessage(function (res) {
       console.log('收到服务器内容：' + res.data)
-      if (JSON.parse(res.data).code == app.globalData.sysCode.STONE_START) {
+      if (JSON.parse(res.data).code == app.globalData.sysCode.WEBSOCKET_STONE_START) {
         //start开始游戏逻辑
         const result = JSON.parse(res.data).data;
-        const you = result.roomUsers.find(user => user.Id !== app.globalData.userInfo.userId);
+        const you = result.roomUsers.find(user => user.id != app.globalData.userInfo.userId);
+      
         console.log(you);
         that.setData({
           youHere: true,
@@ -142,7 +143,7 @@ Page({
         wx.sendSocketMessage({
           data: JSON.stringify(sendData)
         });
-      } else if (JSON.parse(res.data).code == app.globalData.sysCode.STONE_END) {
+      } else if (JSON.parse(res.data).code == app.globalData.sysCode.WEBSOCKET_STONE_END) {
         //end游戏结算逻辑
         // 清除计时器
         clearInterval(that.countdownId);
@@ -162,7 +163,6 @@ Page({
           }
           else {
             gameInfo = '失误';
-            lose = true;
             win = 'you'
           }
 
@@ -214,13 +214,14 @@ Page({
 
   // 点击手势，更新选择是石头、剪刀还是布
   switchChoice(e) {
-    console.log("1111");
-    if (this.data.playing) return;
+    console.log(this.data.playing);
+    if (!this.data.playing) return;
     let myChoice = this.data.myChoice + 1;
     if (myChoice == 4) {
       myChoice = 1;
     }
     this.setData({ myChoice });
+    console.log("选择："+this.data.myChoice);
     //发送用户改变选项消息
     var tempData = {
       operation: "changeChoice",

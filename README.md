@@ -4,6 +4,10 @@ qiaoyy-client
 
 提供巧遇1V1小游戏
 
+6-6
+
+由于微信要求socket的安全访问域名需要配置的wss 并且不允许有端口号
+初步决定将前段的websocket连接改用js原生 舍弃sdk中的写法 
 
 6-2
 

@@ -1,13 +1,13 @@
 {
-  "name": "qcloud-weapp-client-demo",
-  "version": "1.0.0",
-  "description": "腾讯云微信小程序客户端 DEMO",
+  "name": "qiaoyy",
+  "version": "0.0.1",
+  "description": "巧遇游",
   "main": "app.js",
   "repository": {
     "type": "git",
-    "url": "https://github.com/tencentyun/weapp-client-demo.git"
+    "url": "https://github.com/zebei/qiaoyy-client.git"
   },
   "keywords": [],
-  "author": "CFETeam",
+  "author": "bei",
   "license": "MIT"
 }

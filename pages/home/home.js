@@ -56,6 +56,11 @@ Page({
     wx.navigateTo({
       url: '../game/game'
     })
+  },
+  gotoindex: function () {
+    wx.navigateTo({
+      url: '../index/index'
+    })
   }
 
 

@@ -131,7 +131,7 @@ Page({
      */
     openTunnel() {
         // 创建信道，需要给定后台服务地址
-        var tunnel = this.tunnel = new qcloud.Tunnel(this.data.tunnelUrl);
+      var tunnel = this.tunnel = new qcloud.Tunnel(this.data.tunnelUrl + ' ?game=' + app.globalData.apiCode.stone+'&userid='+ app.globalData.userInfo.userId);
 
         // 监听信道内置消息，包括 connect/close/reconnecting/reconnect/error
         tunnel.on('connect', () => {

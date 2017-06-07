@@ -3,6 +3,7 @@
 // 引入 co 和 promisify 帮助我们进行异步处理
 const co = require('../../lib/co.js');
 const promisify = require('../../lib/promisify.js');
+var qcloud = require('../../vendor/qcloud-weapp-client-sdk/index');
 
 // 生成随机用户 ID
 const uuid = require('../../lib/uuid.js');
@@ -75,115 +76,217 @@ Page({
 
   // 微信登录后获得用户信息
   login: co.wrap(function* () {
-    // this.setData({ gameInfo: "正在登陆" });
-    // const loginResult = yield login();
-    // const userInfo = yield getUserInfo();
     const { nickName, avatarUrl } = app.globalData.userInfo;
     this.setData({ myName: nickName, myAvatar: avatarUrl })
   }),
   connect: co.wrap(function* () {
     var that = this;
-    wx.connectSocket({
-      url: appConfig.service.websocketUrl+'websocket?userid=' + app.globalData.userInfo.userId,
-     
-    })
-    wx.onSocketOpen(function (res) {
-      console.log('WebSocket连接已打开！');
-      // wx.sendSocketMessage({
-      //   data: "1113333"
-      // });
+    var tunnelUrl = appConfig.service.tunnelUrl + '?game=' + app.globalData.apiCode.stone + '&userid=' + app.globalData.userInfo.userId;
+    console.log(tunnelUrl);
+    var tunnel = this.tunnel = new qcloud.Tunnel(tunnelUrl);
+
+    // 监听信道内置消息，包括 connect/close/reconnecting/reconnect/error
+    tunnel.on('connect', () => {
+      console.log('WebSocket 信道已连接');
       that.setData({ gameInfo: "准备", connected: true });
-    })
-    wx.onSocketError(function (res) {
-      console.log('WebSocket连接打开失败，请检查！')
-    })
+    });
+    // 打开信道
+    tunnel.open();
+
+    // var websocketurl = appConfig.service.websocketUrl + 'websocket?userid=' + app.globalData.userInfo.userId;
+
+    // wx.connectSocket({
+    //   url: websocketurl,
+
+    // })
+    // wx.onSocketOpen(function (res) {
+    //   console.log('WebSocket连接已打开！');
+    //   that.setData({ gameInfo: "准备", connected: true });
+    // })
+    // wx.onSocketError(function (res) {
+    //   console.log('WebSocket连接打开失败，请检查！')
+    // })
   }),
-  
+
 
   // 开始进行游戏服务
   serve: co.wrap(function* () {
-    const socket = this.socket;
-    var that=this;
-    wx.onSocketMessage(function (res) {
-      console.log('收到服务器内容：' + res.data)
-      if (JSON.parse(res.data).code == app.globalData.sysCode.WEBSOCKET_STONE_START) {
-        //start开始游戏逻辑
-        const result = JSON.parse(res.data).data;
-        const you = result.roomUsers.find(user => user.id != app.globalData.userInfo.userId);
-      
-        console.log(you);
-        that.setData({
-          youHere: true,
-          yourName: you.nickName,
-          yourAvatar: you.avatarUrl,
-          yourScore: you.score,
-          playing: true,
-          gameInfo: "准备"
-        });
+    const tunnel = this.tunnel;
+    var that = this;
+    tunnel.on(app.globalData.sysCode.WEBSOCKET_STONE_START, res => {
 
-        let gameTime = result.gameTime;
-        clearInterval(that.countdownId);
-        that.countdownId = setInterval(() => {
-          if (gameTime > 0) {
-            that.setData({ gameInfo: --gameTime });
-          } else {
-            clearInterval(this.countdownId);
-          }
-        }, 1000);
-        //发送用户选择
-        var tempData = {
-          operation: "changeChoice",
-          choice: that.data.myChoice,
-          userId: app.globalData.userInfo.userId,
+      console.log('收到start说话消息：', res);
+      //start开始游戏逻辑
+      const result = JSON.parse(res.data).data;
+      const you = result.roomUsers.find(user => user.id != app.globalData.userInfo.userId);
+
+      console.log(you);
+      that.setData({
+        youHere: true,
+        yourName: you.nickName,
+        yourAvatar: you.avatarUrl,
+        yourScore: you.score,
+        playing: true,
+        gameInfo: "准备"
+      });
+
+      let gameTime = result.gameTime;
+      clearInterval(that.countdownId);
+      that.countdownId = setInterval(() => {
+        if (gameTime > 0) {
+          that.setData({ gameInfo: --gameTime });
+        } else {
+          clearInterval(this.countdownId);
         }
-        var sendData = {
-          game: app.globalData.apiCode.stone,
-          data: tempData
-        };
-        wx.sendSocketMessage({
+      }, 1000);
+      //发送用户选择
+      var tempData = {
+        operation: "changeChoice",
+        choice: that.data.myChoice,
+        userId: app.globalData.userInfo.userId,
+      }
+      var sendData = {
+        game: app.globalData.apiCode.stone,
+        data: tempData
+      };
+      // wx.sendSocketMessage({
+      //   data: JSON.stringify(sendData)
+      // });
+      if (this.tunnel && this.tunnel.isActive()) {
+        console.log('changeChoice');
+        // 使用信道给服务器推送「speak」消息
+        this.tunnel.emit('changeChoice', {
+          // 'word': 'I say something at ' + new Date(),
           data: JSON.stringify(sendData)
         });
-      } else if (JSON.parse(res.data).code == app.globalData.sysCode.WEBSOCKET_STONE_END) {
-        //end游戏结算逻辑
-        // 清除计时器
-        clearInterval(that.countdownId);
-        var result = JSON.parse(res.data).data;
-          // 双方结果
-        const myResult = result.find(x => x.userid == app.globalData.userInfo.userId);
-        const yourResult = result.find(x => x.userid != app.globalData.userInfo.userId);
-
-          // 本局结果
-          let gameInfo, win = 'nobody';
-          if (myResult.roundScore == 0 && yourResult.roundScore == 0) {
-            gameInfo = '平局';
-          }
-          else if (myResult.roundScore > 0) {
-            gameInfo = '胜利';
-            win = 'me';
-          }
-          else {
-            gameInfo = '失误';
-            win = 'you'
-          }
-
-          // 更新到视图
-          that.setData({
-            gameInfo,
-            myScore: myResult.totalScore,
-           // myStreak: myResult.winStreak,
-            yourChoice: yourResult.choice,
-            yourScore: yourResult.totalScore,
-           // yourStreak: yourResult.winStreak,
-            gameState: 'finish',
-            win,
-            startButtonText: win == 'you' ? "不服" : "再来",
-            done: true
-          });
-
-          setTimeout(() => that.setData({ playing: false }), 1000);
       }
     });
-   
+    tunnel.on(app.globalData.sysCode.WEBSOCKET_STONE_END, res => {
+
+      console.log('收到end说话消息：', res);
+      //end游戏结算逻辑
+      // 清除计时器
+      clearInterval(that.countdownId);
+      var result = JSON.parse(res.data).data;
+      // 双方结果
+      const myResult = result.find(x => x.userid == app.globalData.userInfo.userId);
+      const yourResult = result.find(x => x.userid != app.globalData.userInfo.userId);
+
+      // 本局结果
+      let gameInfo, win = 'nobody';
+      if (myResult.roundScore == 0 && yourResult.roundScore == 0) {
+        gameInfo = '平局';
+      }
+      else if (myResult.roundScore > 0) {
+        gameInfo = '胜利';
+        win = 'me';
+      }
+      else {
+        gameInfo = '失误';
+        win = 'you'
+      }
+
+      // 更新到视图
+      that.setData({
+        gameInfo,
+        myScore: myResult.totalScore,
+        // myStreak: myResult.winStreak,
+        yourChoice: yourResult.choice,
+        yourScore: yourResult.totalScore,
+        // yourStreak: yourResult.winStreak,
+        gameState: 'finish',
+        win,
+        startButtonText: win == 'you' ? "不服" : "再来",
+        done: true
+      });
+
+      setTimeout(() => that.setData({ playing: false }), 1000);
+
+    });
+
+
+
+
+    // wx.onSocketMessage(function (res) {
+    //   console.log('收到服务器内容：' + res.data)
+    //   if (JSON.parse(res.data).code == app.globalData.sysCode.WEBSOCKET_STONE_START) {
+    //     //start开始游戏逻辑
+    //     const result = JSON.parse(res.data).data;
+    //     const you = result.roomUsers.find(user => user.id != app.globalData.userInfo.userId);
+
+    //     console.log(you);
+    //     that.setData({
+    //       youHere: true,
+    //       yourName: you.nickName,
+    //       yourAvatar: you.avatarUrl,
+    //       yourScore: you.score,
+    //       playing: true,
+    //       gameInfo: "准备"
+    //     });
+
+    //     let gameTime = result.gameTime;
+    //     clearInterval(that.countdownId);
+    //     that.countdownId = setInterval(() => {
+    //       if (gameTime > 0) {
+    //         that.setData({ gameInfo: --gameTime });
+    //       } else {
+    //         clearInterval(this.countdownId);
+    //       }
+    //     }, 1000);
+    //     //发送用户选择
+    //     var tempData = {
+    //       operation: "changeChoice",
+    //       choice: that.data.myChoice,
+    //       userId: app.globalData.userInfo.userId,
+    //     }
+    //     var sendData = {
+    //       game: app.globalData.apiCode.stone,
+    //       data: tempData
+    //     };
+    //     wx.sendSocketMessage({
+    //       data: JSON.stringify(sendData)
+    //     });
+    //   } else if (JSON.parse(res.data).code == app.globalData.sysCode.WEBSOCKET_STONE_END) {
+    //     //end游戏结算逻辑
+    //     // 清除计时器
+    //     clearInterval(that.countdownId);
+    //     var result = JSON.parse(res.data).data;
+    //       // 双方结果
+    //     const myResult = result.find(x => x.userid == app.globalData.userInfo.userId);
+    //     const yourResult = result.find(x => x.userid != app.globalData.userInfo.userId);
+
+    //       // 本局结果
+    //       let gameInfo, win = 'nobody';
+    //       if (myResult.roundScore == 0 && yourResult.roundScore == 0) {
+    //         gameInfo = '平局';
+    //       }
+    //       else if (myResult.roundScore > 0) {
+    //         gameInfo = '胜利';
+    //         win = 'me';
+    //       }
+    //       else {
+    //         gameInfo = '失误';
+    //         win = 'you'
+    //       }
+
+    //       // 更新到视图
+    //       that.setData({
+    //         gameInfo,
+    //         myScore: myResult.totalScore,
+    //        // myStreak: myResult.winStreak,
+    //         yourChoice: yourResult.choice,
+    //         yourScore: yourResult.totalScore,
+    //        // yourStreak: yourResult.winStreak,
+    //         gameState: 'finish',
+    //         win,
+    //         startButtonText: win == 'you' ? "不服" : "再来",
+    //         done: true
+    //       });
+
+    //       setTimeout(() => that.setData({ playing: false }), 1000);
+    //   }
+    // });
+
   }),
 
   // 点击开始游戏按钮，发送加入游戏请求
@@ -192,6 +295,9 @@ Page({
     const socket = this.socket;
     let myChoice = this.data.myChoice
     console.log(app.globalData.userInfo.userId);
+
+
+
     var tempData = {
       operation: "join",
       choice: myChoice,
@@ -201,14 +307,29 @@ Page({
       game: app.globalData.apiCode.stone,
       data: tempData
     };
-    wx.sendSocketMessage({
-      data: JSON.stringify(sendData)
-    });
+
+
+    if (this.tunnel && this.tunnel.isActive()) {
+      console.log('join');
+      // 使用信道给服务器推送「speak」消息
+      this.tunnel.emit('join', {
+        // 'word': 'I say something at ' + new Date(),
+        data: JSON.stringify(sendData)
+      });
+    }
+
+    // wx.sendSocketMessage({
+    //   data: JSON.stringify(sendData)
+    // });
     this.setData({
       playing: false,
       done: false,
       gameInfo: '正在寻找玩伴...'
     });
+
+
+
+
 
   }),
 
@@ -221,7 +342,7 @@ Page({
       myChoice = 1;
     }
     this.setData({ myChoice });
-    console.log("选择："+this.data.myChoice);
+    console.log("选择：" + this.data.myChoice);
     //发送用户改变选项消息
     var tempData = {
       operation: "changeChoice",
@@ -232,8 +353,17 @@ Page({
       game: app.globalData.apiCode.stone,
       data: tempData
     };
-    wx.sendSocketMessage({
-      data: JSON.stringify(sendData)
-    });
+    // wx.sendSocketMessage({
+    //   data: JSON.stringify(sendData)
+    // });
+    if (this.tunnel && this.tunnel.isActive()) {
+      console.log('changeChoice');
+      // 使用信道给服务器推送「speak」消息
+      this.tunnel.emit('changeChoice', {
+        // 'word': 'I say something at ' + new Date(),
+        data: JSON.stringify(sendData)
+      });
+    }
   }
+
 });

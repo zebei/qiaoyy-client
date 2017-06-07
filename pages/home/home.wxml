@@ -13,5 +13,8 @@
    <view class="usermotto" style="margin-top:15px" bindtap="gotogame">
     <text class="user-motto">gotogame</text>
   </view>
+   <view class="usermotto" style="margin-top:15px" bindtap="gotoindex">
+    <text class="user-motto">gotoindex</text>
+  </view>
   
 </view>

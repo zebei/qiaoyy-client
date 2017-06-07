@@ -52,7 +52,8 @@ App({
     clientSDKVersion: '',
     sysCode:sysCode,
     apiCode:apiCode,
-    welcome: '进入巧遇游'
+    welcome: '进入巧遇游',
+    branch:'qcloudsdk'
   },
   onLaunch() {
     qcloud.setLoginUrl(config.service.loginUrl);
